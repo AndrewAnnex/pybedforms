@@ -157,18 +157,25 @@ class DuneTopo(object):
 
         # Make the grids from dune init
         self.CenterShift = 50
+        self.GridSize = 100
+        self.SurfGridSpace = 1
+        self.EdgeGridSpace = 1
         self.x, self.y = np.meshgrid(
-            1 - CenterShift:SurfGridSpace: GridSize - CenterShift, 1 - CenterShift: SurfGridSpace:GridSize - CenterShift)
-        XEdge[1: GridSize / EdgeGridSpace] = 1
-        XEdge[GridSize / EdgeGridSpace: 2 * GridSize / EdgeGridSpace - 1] = 1: EdgeGridSpace: GridSize
-        XEdge[2 * GridSize / EdgeGridSpace: 3 * GridSize / EdgeGridSpace - 1] = GridSize
-        XEdge[3 * GridSize / EdgeGridSpace: 4 * GridSize / EdgeGridSpace - 1] = GridSize: -EdgeGridSpace: 1
-        YEdge[1: GridSize / EdgeGridSpace] = GridSize: -EdgeGridSpace: 1
-        YEdge[GridSize / EdgeGridSpace: 2 * GridSize / EdgeGridSpace - 1] = 1
-        YEdge[2 * GridSize / EdgeGridSpace: 3 * GridSize / EdgeGridSpace - 1] = 1: EdgeGridSpace: GridSize
-        YEdge[3 * GridSize / EdgeGridSpace: 4 * GridSize / EdgeGridSpace - 1] = GridSize
-        XEdge = XEdge - CenterShift
-        YEdge = YEdge - CenterShift
+            np.arange(1 - self.CenterShift, self.GridSize - self.CenterShift, self.SurfGridSpace),
+            np.arange(1 - self.CenterShift, self.GridSize - self.CenterShift, self.SurfGridSpace)
+        )
+        num_cells = self.GridSize // self.EdgeGridSpace
+        self.XEdge = np.ones(num_cells)
+        self.XEdge[num_cells: 2 * num_cells - 1] = np.arange(1, self.GridSize + self.EdgeGridSpace, self.EdgeGridSpace)
+        self.XEdge[2 * num_cells: 3 * num_cells - 1] = self.GridSize
+        self.XEdge[3 * num_cells: 4 * num_cells - 1] = np.arange(self.GridSize, 1, -self.EdgeGridSpace)
+        self.YEdge = np.ones(num_cells)
+        self.YEdge[1: num_cells] = np.arange(self.GridSize, 1, -self.EdgeGridSpace)
+        self.YEdge[num_cells: 2 * num_cells - 1] = 1
+        self.YEdge[2 * num_cells: 3 * num_cells - 1] = np.arange(1, self.GridSize, self.EdgeGridSpace)
+        self.YEdge[3 * num_cells: 4 * num_cells - 1] = self.GridSize
+        self.XEdge = self.XEdge - self.CenterShift
+        self.YEdge = self.YEdge - self.CenterShift
 
         """
         % Calculate the migration direction of scour pits formed by intersecting
