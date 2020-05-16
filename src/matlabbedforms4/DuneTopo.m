@@ -116,7 +116,7 @@ if size(z,1) > 1
   ZBED(GridSize/EdgeGridSpace:-EdgeGridSpace:1) = min(ZBED(GridSize/EdgeGridSpace:-EdgeGridSpace:1),z(:,1)');
   ZBED(GridSize/EdgeGridSpace:2*GridSize/EdgeGridSpace-1) = min(ZBED(GridSize/EdgeGridSpace:2*GridSize/EdgeGridSpace-1),z(1,:));
   ZBED(2*GridSize/EdgeGridSpace:3*GridSize/EdgeGridSpace-1) = min(ZBED(2*GridSize/EdgeGridSpace:3*GridSize/EdgeGridSpace-1),z(:,100)');  %%
-  %ZBED(3*GridSize/EdgeGridSpace:4*GridSize/EdgeGridSpace-1) = min(ZBED(3*GridSize/EdgeGridSpace:4*GridSize/EdgeGridSpace-1),z(100,:));   %%
+  %ZBED(3*size/edge_grid_spacing:4*size/edge_grid_spacing-1) = min(ZBED(3*size/edge_grid_spacing:4*size/edge_grid_spacing-1),z(100,:));   %%
   ZBED(4*GridSize/EdgeGridSpace-1:-EdgeGridSpace:3*GridSize/EdgeGridSpace) = min(ZBED(4*GridSize/EdgeGridSpace-1:-EdgeGridSpace:3*GridSize/EdgeGridSpace),z(100,:));   %%
   %  ZBED = min(ZBED,zref); 
   ZBED = max(ZBED,-30);

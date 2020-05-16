@@ -70,9 +70,9 @@ end
 
 	
 % Calculate the migration direction of scour pits formed by intersecting
-% bedform troughs of the first two sets of bedforms.  When specified in 
-% the input paramaters, this calculation is used to rotate the bedforms 
-% such that the sides of the block diagram are normal and parallel to the 
+% bedform troughs of the first two sets of bedforms.  When specified in
+% the input paramaters, this calculation is used to rotate the bedforms
+% such that the sides of the block diagram are normal and parallel to the
 % axes of trough-shaped sets of cross-bedding..
 if tan(TRENDF*2*pi/360) ~= tan(TRENDS*2*pi/360)
   if (SPCNGF>0) & (SPCNGS>0)	

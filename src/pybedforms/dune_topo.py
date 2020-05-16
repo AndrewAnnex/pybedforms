@@ -3,6 +3,27 @@ from numpy import pi, sin, cos, arctan2, tan
 import numba as nb
 from typing import Tuple
 
+@nb.jit
+def make_grid_and_edges(center = 50, size = 100, grid_spacing = 1, edge_grid_spacing = 1):
+    x, y = np.meshgrid(
+        np.arange(1 - center, size - center + grid_spacing, grid_spacing),
+        np.arange(1 - center, size - center + grid_spacing, grid_spacing)
+    )
+    num_cells = size // edge_grid_spacing
+    #todo: still off by 1 relative to matlab but this is much cleaner
+    XEdge = np.concatenate((
+        np.ones(num_cells),
+        np.arange(1, size + edge_grid_spacing, edge_grid_spacing),
+        np.repeat(size, num_cells),
+        np.arange(1, size + edge_grid_spacing, edge_grid_spacing)[::-1]
+    )) - center
+    YEdge = np.concatenate((
+        np.arange(1, size + edge_grid_spacing, edge_grid_spacing)[::-1],
+        np.ones(num_cells),
+        np.arange(1, size + edge_grid_spacing, edge_grid_spacing),
+        np.repeat(size, num_cells),
+    )) - center
+    return x, y, XEdge, YEdge
 
 # jitclass
 class DuneTopo(object):
@@ -160,23 +181,7 @@ class DuneTopo(object):
         self.GridSize = 100
         self.SurfGridSpace = 1
         self.EdgeGridSpace = 1
-        self.x, self.y = np.meshgrid(
-            np.arange(1 - self.CenterShift, self.GridSize - self.CenterShift, self.SurfGridSpace),
-            np.arange(1 - self.CenterShift, self.GridSize - self.CenterShift, self.SurfGridSpace)
-        )
-        num_cells = self.GridSize // self.EdgeGridSpace
-        self.XEdge = np.ones(num_cells)
-        self.XEdge[num_cells: 2 * num_cells - 1] = np.arange(1, self.GridSize + self.EdgeGridSpace, self.EdgeGridSpace)
-        self.XEdge[2 * num_cells: 3 * num_cells - 1] = self.GridSize
-        self.XEdge[3 * num_cells: 4 * num_cells - 1] = np.arange(self.GridSize, 1, -self.EdgeGridSpace)
-        self.YEdge = np.ones(num_cells)
-        self.YEdge[1: num_cells] = np.arange(self.GridSize, 1, -self.EdgeGridSpace)
-        self.YEdge[num_cells: 2 * num_cells - 1] = 1
-        self.YEdge[2 * num_cells: 3 * num_cells - 1] = np.arange(1, self.GridSize, self.EdgeGridSpace)
-        self.YEdge[3 * num_cells: 4 * num_cells - 1] = self.GridSize
-        self.XEdge = self.XEdge - self.CenterShift
-        self.YEdge = self.YEdge - self.CenterShift
-
+        self.x, self.y, self.XEdge, self.YEdge = make_grid_and_edges(self.CenterShift, self.GridSize, self.SurfGridSpace, self.EdgeGridSpace)
         """
         % Calculate the migration direction of scour pits formed by intersecting
         % bedform troughs of the first two sets of bedforms.  When specified in 
