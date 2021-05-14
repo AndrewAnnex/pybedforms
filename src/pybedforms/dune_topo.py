@@ -5,6 +5,7 @@ from tqdm import tqdm
 from mayavi import mlab
 import matplotlib.pyplot as plt
 from skimage import measure
+import scipy
 
 def make_grid_and_edges(center = 50, size = 100, grid_spacing = 1, edge_grid_spacing = 1):
     x, y = np.meshgrid(
@@ -484,12 +485,12 @@ def extract_core(strat, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3,
     r, c, ts = np.shape(strat)
     strat2 = strat.copy()
     strat2[strat<bottom] = bottom
-    X1 = x0 + np.cos(2*pi/num*np.arange(n))*radius
+    X1 = x0 + np.cos(2*pi/num*np.arange(num))*radius
     X1 = np.hstack((X1, X1[0]))
-    Y1 = y0 + np.sin(2*pi/num*np.arange(n))*radius
+    Y1 = y0 + np.sin(2*pi/num*np.arange(num))*radius
     Y1 = np.hstack((Y1, Y1[0]))
     top = scipy.ndimage.map_coordinates(strat2[:,:,-1], np.vstack((Y1, X1)))
-    vertices, triangles = dt.create_section(top, dx, bottom) 
+    vertices, triangles = create_section(top, dx, bottom) 
     color = (0.886, 0.792, 0.463) # color for plotting basal part of panel
     mlab.triangular_mesh(scale*np.hstack((dx*X1,dx*X1[::-1])),
                         scale*np.hstack((dx*Y1,dx*Y1[::-1])),scale*ve*vertices[:,1],triangles,color=color)
