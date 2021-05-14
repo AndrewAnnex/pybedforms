@@ -276,10 +276,10 @@ class DuneTopo(object):
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD + 7.5 / FD) * sizef
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD + 7.5 / SD) * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD + 7.5 / TD) * sizet
-            z = max(zfd, zsd)
-            z = max(z, ztd)
+            z = np.maximum(zfd, zsd)
+            z = np.maximum(z, ztd)
             z = z + DPOSIT
-            z = max(z, (7.5 * (1 + self.ELVMIN) / BD + DPOSIT))
+            z = np.maximum(z, (7.5 * (1 + self.ELVMIN) / BD + DPOSIT))
         elif self.TYPE == 4:
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD)
             shape = 1 - ((7.5 / FD) - zfd) / (15 / FD)
@@ -287,13 +287,13 @@ class DuneTopo(object):
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD) * shape * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD) * shape * sizet
             z = zfd + zsd + ztd + DPOSIT
-            z = max(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
+            z = np.maximum(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
         elif self.TYPE == 5:
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD) * sizef
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD + 7.5 / SD) * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD + 7.5 / TD) * sizet
-            z = zfd + max(zsd, ztd) + DPOSIT
-            z = max(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
+            z = zfd + np.maximum(zsd, ztd) + DPOSIT
+            z = np.maximum(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
         elif self.TYPE == 6:
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD)
             shape = ((7.5 / FD) - zfd) / (15 / FD)
@@ -301,7 +301,7 @@ class DuneTopo(object):
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD) * shape * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD) * shape * sizet
             z = zfd + zsd + ztd + DPOSIT
-            z = max(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
+            z = np.maximum(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
         else:
             pass
 
