@@ -480,8 +480,9 @@ def create_section(profile, dx, bottom):
         triangles.append([i+1,n-i-1,n-i-2])
     return vertices, triangles
 
-def extract_core(strat, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, num = 50, bottom = 0, time_step = 4):
+def extract_core(topo, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, num = 50, bottom = 0, time_step = 4):
     """function for extracting a "core" from the model"""
+    strat = np.minimum.accumulate(topo[:, :, ::-1], axis=2)[:, :, ::-1] # convert topography to stratigraphy
     r, c, ts = np.shape(strat)
     strat2 = strat.copy()
     strat2[strat<bottom] = bottom
