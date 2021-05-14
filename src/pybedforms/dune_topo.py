@@ -1,9 +1,11 @@
 import numpy as np
 from numpy import pi, sin, cos, arctan2, tan
 import numba as nb
-from typing import Tuple
+from tqdm import tqdm
+from mayavi import mlab
+import matplotlib.pyplot as plt
+from skimage import measure
 
-@nb.jit
 def make_grid_and_edges(center = 50, size = 100, grid_spacing = 1, edge_grid_spacing = 1):
     x, y = np.meshgrid(
         np.arange(1 - center, size - center + grid_spacing, grid_spacing),
@@ -25,13 +27,11 @@ def make_grid_and_edges(center = 50, size = 100, grid_spacing = 1, edge_grid_spa
     )) - center
     return x, y, XEdge, YEdge
 
-# jitclass
 class DuneTopo(object):
-
-    def __init__(self, SPCNGF=50.0, PHASEF=0.0, SMTRYF=0.0, SMCHGF=0.0, SMPRDF=1.0,
+    def __init__(self, SPCNGF=50.0, PHASEF=0.0, SMTRYF=1.0, SMCHGF=0.0, SMPRDF=1.0,
                  SMFAZF=0.0,HTRTOF=1.0,HTCHGF=0.0,HTPRDF=1.0,HTFAZF=0.0,SNSPF1=0.0,
                  SNMGF1=0.0,SNFZF1=0.0,SNVLF1=0.0,SNSPF2=0.0,SNMGF2=0.0,SNFZF2=0.0,
-                 SNVLF2=0.0,TRENDF=90.0,VELOCF=0.0,VLCHGF=0.0,VLPRDF=1.0,VLFAZF=0.0,
+                 SNVLF2=0.0,TRENDF=90.0,VELOCF=1.0,VLCHGF=0.0,VLPRDF=1.0,VLFAZF=0.0,
                  SPCNGS=0.0,PHASES=0.0,SMTRYS=0.0,SMCHGS=0.0,SMPRDS=1.0,SMFAZS=0.0,
                  HTRTOS=0.0,HTCHGS=0.0,HTPRDS=1.0,HTFAZS=0.0,SNSPS1=0.0,SNMGS1=0.0,
                  SNFZS1=0.0,SNVLS1=0.0,SNSPS2=0.0,SNMGS2=0.0,SNFZS2=0.0,SNVLS2=0.0,
@@ -39,10 +39,12 @@ class DuneTopo(object):
                  PHASET=0.0,SMTRYT=0.0,SMCHGT=0.0,SMPRDT=1.0,SMFAZT=0.0,HTRTOT=0.0,
                  HTCHGT=0.0,HTPRDT=1.0,HTFAZT=0.0,SNSPT1=0.0,SNMGT1=0.0,SNFZT1=0.0,
                  SNVLT1=0.0,SNSPT2=0.0,SNMGT2=0.0,SNFZT2=0.0,SNVLT2=0.0,TRENDT=0.0,
-                 VELOCT=0.0,VLCHGT=0.0,VLPRDT=1.0,VLFAZT=0.0,TYPE=2,CHOICE=0,
-                 ELVMIN=-1.0,DEPRAT=.8,DEPCHG=0.0,DEPPRD=1.0,DEPFAZ=0.0,NBEDSH=2500,
+                 VELOCT=0.0,VLCHGT=0.0,VLPRDT=1.0,VLFAZT=0.0,TYPE=1,CHOICE=0,
+                 ELVMIN=-1.0,DEPRAT=.08,DEPCHG=0.0,DEPPRD=1.0,DEPFAZ=0.0,NBEDSH=500,
                  INTXBD=4,FRMNUM=1,CAPLOG='true',FILOG='true',FRMLOG='true',IGRDSP=1,
                  ZHORIZ=1.0):
+        # default parameter values are from 'Figure 5' of Rubin and Carter
+        self.TOPO = None
         self.SPCNGF = SPCNGF # (3)  WAVELENGTH OF BEDFORMS IN FIRST SET
         self.PHASEF = PHASEF # (4)  Bedform phase (controls placement within block diagram)
         self.SMTRYF = SMTRYF # (5)  Mean asymmetry
@@ -189,7 +191,7 @@ class DuneTopo(object):
         % such that the sides of the block diagram are normal and parallel to the 
         % axes of trough-shaped sets of cross-bedding..
         """
-        if tan(self.TRENDF * 2 * pi / 360) != tan(self.TRENDS * 2 * pi / 360) & (self.SPCNGF > 0) & (self.SPCNGS > 0):
+        if (tan(self.TRENDF * 2 * pi / 360) != tan(self.TRENDS * 2 * pi / 360)) & (self.SPCNGF > 0) & (self.SPCNGS > 0):
             self.ANGLEA = arctan2(
                 self.VELOCF, tan((90 + self.TRENDF - self.TRENDS) * 2 * pi / 360) * self.VELOCF - self.VELOCS / sin(
                     (self.TRENDS - self.TRENDF) * 2 * pi / 360)
@@ -202,7 +204,7 @@ class DuneTopo(object):
             if self.SPCNGT != 0:
                 self.TRENDT = self.TRENDF + self.ANGLEC
 
-    def run(self, x, y, TIME, ZBED, run, GridSize, EdgeGridSpace):
+    def run(self, TIME): #, run): #, GridSize, EdgeGridSpace):
         """
         main run method, below will be split into other functions as needed
         :return:
@@ -229,20 +231,20 @@ class DuneTopo(object):
         disptd = self.VELOCT * TIME + self.VLCHGT * (-self.VLPRDT / (2 * pi)) * cos(
             ((self.VLFAZT - 90) * 2 * pi / 360) + (TIME * 2 * pi / self.VLPRDT))
 
-        yfd = x * sin(self.TRENDF * 2 * pi / 360) + y * cos(self.TRENDF * 2 * pi / 360)
-        ysd = x * sin(self.TRENDS * 2 * pi / 360) + y * cos(self.TRENDS * 2 * pi / 360)
-        ytd = x * sin(self.TRENDT * 2 * pi / 360) + y * cos(self.TRENDT * 2 * pi / 360)
-        xfd = (x * cos(self.TRENDF * 2 * pi / 360) - y * sin(self.TRENDF * 2 * pi / 360) - dispfd - self.SPCNGF * self.PHASEF / 360) - \
+        yfd = self.x * sin(self.TRENDF * 2 * pi / 360) + self.y * cos(self.TRENDF * 2 * pi / 360)
+        ysd = self.x * sin(self.TRENDS * 2 * pi / 360) + self.y * cos(self.TRENDS * 2 * pi / 360)
+        ytd = self.x * sin(self.TRENDT * 2 * pi / 360) + self.y * cos(self.TRENDT * 2 * pi / 360)
+        xfd = (self.x * cos(self.TRENDF * 2 * pi / 360) - self.y * sin(self.TRENDF * 2 * pi / 360) - dispfd - self.SPCNGF * self.PHASEF / 360) - \
               (self.SNMGF1 * sin(
                   (yfd * 2 * pi / self.SNSPF1) + ((self.SNFZF1 * 2 * pi / 360) + (TIME * self.SNVLF1 * 2 * pi / self.SNSPF1)))) - \
               (self.SNMGF2 * sin(
                   (yfd * 2 * pi / self.SNSPF2) + ((self.SNFZF2 * 2 * pi / 360) + (TIME * self.SNVLF2 * 2 * pi / self.SNSPF2))))
-        xsd = (x * cos(self.TRENDS * 2 * pi / 360) - y * sin(self.TRENDS * 2 * pi / 360) - dispsd - self.SPCNGS * self.PHASES / 360) - \
+        xsd = (self.x * cos(self.TRENDS * 2 * pi / 360) - self.y * sin(self.TRENDS * 2 * pi / 360) - dispsd - self.SPCNGS * self.PHASES / 360) - \
               (self.SNMGS1 * sin(
                   (ysd * 2 * pi / self.SNSPS1) + ((self.SNFZS1 * 2 * pi / 360) + (TIME * self.SNVLS1 * 2 * pi / self.SNSPS1)))) - \
               (self.SNMGS2 * sin(
                   (ysd * 2 * pi / self.SNSPS2) + ((self.SNFZS2 * 2 * pi / 360) + (TIME * self.SNVLS2 * 2 * pi / self.SNSPS2))))
-        xtd = (x * cos(self.TRENDT * 2 * pi / 360) - y * sin(self.TRENDT * 2 * pi / 360) - disptd - self.SPCNGT * self.PHASET / 360) - \
+        xtd = (self.x * cos(self.TRENDT * 2 * pi / 360) - self.y * sin(self.TRENDT * 2 * pi / 360) - disptd - self.SPCNGT * self.PHASET / 360) - \
               (self.SNMGT1 * sin(
                   (ytd * 2 * pi / self.SNSPT1) + ((self.SNFZT1 * 2 * pi / 360) + (TIME * self.SNVLT1 * 2 * pi / self.SNSPT1)))) - \
               (self.SNMGT2 * sin(
@@ -259,7 +261,7 @@ class DuneTopo(object):
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD) * shape * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD) * shape * sizet
             z = zfd + zsd + ztd + DPOSIT
-            z = max(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
+            z = np.maximum(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
         elif self.TYPE == 2:
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD)
             shape = ((7.5 / FD) - zfd) / (15 / FD)
@@ -267,7 +269,7 @@ class DuneTopo(object):
             zsd = (-6 * sin(xsd * SD * pi / 50) / SD - 1.5 * sin((xsd * SD * pi / 25) + PROFS) / SD) * shape * sizes
             ztd = (-6 * sin(xtd * TD * pi / 50) / TD - 1.5 * sin((xtd * TD * pi / 25) + PROFT) / TD) * shape * sizet
             z = zfd + zsd + ztd + DPOSIT
-            z = max(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
+            z = np.maximum(z, ((7.5 / FD) + (7.5 / SD) + (7.5 / TD)) * self.ELVMIN + DPOSIT)
         elif self.TYPE == 3:
             BD = 100 / max(self.SPCNGF, self.SPCNGS, self.SPCNGT)
             zfd = (-6 * sin(xfd * FD * pi / 50) / FD - 1.5 * sin((xfd * FD * pi / 25) + PROFF) / FD + 7.5 / FD) * sizef
@@ -302,29 +304,196 @@ class DuneTopo(object):
         else:
             pass
 
+        if TIME == 0:
+            self.TOPO = z
+        else:
+            self.TOPO = np.dstack((self.TOPO, z))
+
+        # I am storing all z surfaces as 'TOPO' (so that we have a complete stratigraphic model), so no need for 'ZBED'
         # Determine high and low points on bedform surface, and set initial values
         # of elevation arrays (zcont and ZBED).
-        if run == 0:
-            zmin = min(min(z))
-            zmax = max(max(z))
-            zref = zmin + (zmax - zmin) * self.ZHORIZ
-            if zref < -30.0:
-                zref = -30.0
-            ZBED[GridSize / EdgeGridSpace:-EdgeGridSpace:1] = z[:, 1]
-            ZBED[GridSize / EdgeGridSpace:2 * GridSize / EdgeGridSpace - 1] = z[1, :]
-            ZBED[2 * GridSize / EdgeGridSpace:3 * GridSize / EdgeGridSpace - 1] = z[:, 100]
-            ZBED[4 * GridSize / EdgeGridSpace - 1:-EdgeGridSpace:3 * GridSize / EdgeGridSpace] = z[100, :]
-            ZBED = min(ZBED, zref)
-            ZBED = max(ZBED, -30)
-        # Define ZBED
-        if np.size(z, 1) > 1:
-            ZBED[GridSize / EdgeGridSpace:-EdgeGridSpace:1] = \
-                min(ZBED[GridSize / EdgeGridSpace:-EdgeGridSpace:1], z[:, 1].T)
-            ZBED[GridSize / EdgeGridSpace:2 * GridSize / EdgeGridSpace - 1] = \
-                min(ZBED[GridSize / EdgeGridSpace:2 * GridSize / EdgeGridSpace - 1], z[1, :])
-            ZBED[2 * GridSize / EdgeGridSpace:3 * GridSize / EdgeGridSpace - 1] = \
-                min(ZBED[2 * GridSize / EdgeGridSpace:3 * GridSize / EdgeGridSpace - 1], z[:, 100].T)
-        else:
-            ZBED = min(z, ZBED)
-            ZBED = max(ZBED, -30)
-        return ZBED
+        # n_gridcells = int(GridSize/EdgeGridSpace)  
+        # if run == 0:
+        #     zmin = np.min(z)
+        #     zmax = np.max(z)
+        #     zref = zmin + (zmax - zmin) * self.ZHORIZ
+        #     if zref < -30.0:
+        #         zref = -30.0
+        #     ZBED[n_gridcells : 0 : -EdgeGridSpace] = z[:, 0]
+        #     ZBED[n_gridcells : 2 * n_gridcells] = z[0, :]
+        #     ZBED[2 * n_gridcells : 3 * n_gridcells] = z[:, -1]
+        #     ZBED[4 * n_gridcells : 3 * n_gridcells-1 : -EdgeGridSpace] = z[-1, :]
+        #     ZBED = np.minimum(ZBED, zref)
+        #     ZBED = np.maximum(ZBED, -30)
+        # # Define ZBED
+        # if np.size(z, 0) > 1:
+        #     ZBED[n_gridcells : 0 : -EdgeGridSpace] = \
+        #         np.minimum(ZBED[n_gridcells : 0 : -EdgeGridSpace], z[:, 0].T)
+        #     ZBED[n_gridcells : 2 * n_gridcells] = \
+        #         np.minimum(ZBED[n_gridcells : 2 * n_gridcells], z[0, :])
+        #     ZBED[2 * n_gridcells : 3 * n_gridcells] = \
+        #         np.minimum(ZBED[2 * n_gridcells : 3 * n_gridcells], z[:, -1].T)
+        # else:
+        #     ZBED = np.minimum(z, ZBED)
+        #     ZBED = np.maximum(ZBED, -30)
+        # return ZBED
+
+def plot_3d(topo, bottom_z, top_z, time_step, color=(0.88627451, 0.79215686, 0.4627451), scale=1, ve=1, dx=1, 
+                                                    line_thickness=0.05, contour_switch=False, new_figure=False):
+    """function for plotting a set of bedforms in 3D"""
+
+    if new_figure:
+        mlab.figure(bgcolor=(1,1,1))
+    else:
+        mlab.clf()
+        
+    strat = np.minimum.accumulate(topo[:, :, ::-1], axis=2)[:, :, ::-1] # convert topography to stratigraphy
+    strat2 = strat.copy()
+    strat2[strat<bottom_z] = bottom_z
+    strat2[strat>top_z] = top_z
+    
+    r,c,ts = np.shape(strat2)
+    z = scale*strat2[:,:,ts-1]
+    z1 = strat2[:,:,-1]
+
+    X1 = scale*(np.linspace(0,r-1,r)*dx)
+    Y1 = scale*(np.linspace(0,c-1,c)*dx)
+    mlab.surf(X1,Y1,z,warp_scale=ve,color=color)
+
+    if contour_switch:
+        contours = list(np.arange(vmin,vmax,ci*scale)) # list of contour values
+        mlab.contour_surf(X1,Y1,z,contours=contours,warp_scale=ve,color=(0,0,0),line_width=1.0)
+
+    # updip side:
+    vertices, triangles = create_section(z1[:,0],dx,bottom_z) 
+    x = scale*(vertices[:,0])
+    y = scale*(np.zeros(np.shape(vertices[:,0])))
+    z = scale*ve*vertices[:,1]
+    mlab.triangular_mesh(x,y,z,triangles,color=color)
+
+    # downdip side:
+    vertices, triangles = create_section(z1[:,-1],dx,bottom_z) 
+    x = scale*(vertices[:,0])
+    y = scale*((c-1)*dx*np.ones(np.shape(vertices[:,0])))
+    z = scale*ve*vertices[:,1]
+    mlab.triangular_mesh(x,y,z,triangles,color=color)
+
+    # left edge (looking downdip):
+    vertices, triangles = create_section(z1[0,:],dx,bottom_z) 
+    x = scale*(np.zeros(np.shape(vertices[:,0])))
+    y = scale*(vertices[:,0])
+    z = scale*ve*vertices[:,1]
+    mlab.triangular_mesh(x,y,z,triangles,color=color)
+
+    # right edge (looking downdip):
+    vertices, triangles = create_section(z1[-1,:],dx,bottom_z) 
+    x = scale*((r-1)*dx*np.ones(np.shape(vertices[:,0])))
+    y = scale*(vertices[:,0])
+    z = scale*ve*vertices[:,1]
+    mlab.triangular_mesh(x,y,z,triangles,color=color)
+
+    # bottom face of block:
+    vertices = dx*np.array([[0,0],[r-1,0],[r-1,c-1],[0,c-1]])
+    triangles = [[0,1,3],[1,3,2]]
+    x = scale*(vertices[:,0])
+    y = scale*(vertices[:,1])
+    z = scale*bottom_z*np.ones(np.shape(vertices[:,0]))
+    mlab.triangular_mesh(x,y,ve*z,triangles,color=color)
+
+    t_steps = np.hstack((np.arange(0, ts-1, time_step), ts-2))
+    for layer_n in tqdm(t_steps): # main loop
+        top = strat2[:,0,layer_n+1]  # updip side
+        base = strat2[:,0,layer_n]
+        X1 = scale*(dx*np.arange(0,r))
+        Y1 = scale*(np.zeros(np.shape(base)))
+        Z1 = ve*scale*base
+        mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+        if layer_n == ts-2:
+            Z1 = ve*scale*top
+            mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+
+        top = strat2[:,-1,layer_n+1]  # downdip side
+        base = strat2[:,-1,layer_n]
+        X1 = scale*(dx*np.arange(0,r))
+        Y1 = scale*(dx*(c-1)*np.ones(np.shape(base)))
+        Z1 = ve*scale*base
+        mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+        if layer_n == ts-2:
+            Z1 = ve*scale*top
+            mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+
+        top = strat2[0,:,layer_n+1]  # left edge (looking downdip)
+        base = strat2[0,:,layer_n]
+        X1 = scale*(np.zeros(np.shape(base)))
+        Y1 = scale*(dx*np.arange(0,c))
+        Z1 = ve*scale*base
+        mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+        if layer_n == ts-2:
+            Z1 = ve*scale*top
+            mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+
+        top = strat2[-1,:,layer_n+1] # right edge (looking downdip)
+        base = strat2[-1,:,layer_n]
+        X1 = scale*(dx*(r-1)*np.ones(np.shape(base)))
+        Y1 = scale*(dx*np.arange(0,c))
+        Z1 = ve*scale*base
+        mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+        if layer_n == ts-2:
+            Z1 = ve*scale*top
+            mlab.plot3d(X1,Y1,Z1,color=(0,0,0),tube_radius=line_thickness)
+
+        if (bottom_z > np.min(strat[:,:,layer_n])) and (bottom_z < np.max(strat[:,:,layer_n])):
+            contours = measure.find_contours(strat[:,:,layer_n], bottom_z)
+            for i in range(0,len(contours)):
+                x1 = contours[i][:,0]
+                y1 = contours[i][:,1]
+                z1 = np.ones(np.shape(x1)) * bottom_z
+                mlab.plot3d(x1,y1,z1,color=(0,0,0),tube_radius=line_thickness)
+
+        if (top_z > np.min(strat[:,:,layer_n])) and (top_z < np.max(strat[:,:,layer_n])):
+            contours = measure.find_contours(strat[:,:,layer_n], top_z)
+            for i in range(0,len(contours)):
+                x1 = contours[i][:,0]
+                y1 = contours[i][:,1]
+                z1 = np.ones(np.shape(x1)) * top_z
+                mlab.plot3d(x1,y1,z1,color=(0,0,0),tube_radius=line_thickness)
+
+def create_section(profile, dx, bottom):
+    """function for creating a cross section from a top surface
+    inputs:
+    profile - elevation data for top surface
+    dx - gridcell size
+    bottom - elevation value for the bottom of the block
+    returns:
+    vertices - coordinates of vertices
+    triangles - indices of the 'vertices' array that from triangles (for triangular mesh)
+    """
+    x1 = dx*np.linspace(0, len(profile)-1, len(profile))
+    x = np.hstack((x1, x1[::-1]))
+    y = np.hstack((profile, bottom*np.ones(np.shape(x1))))
+    vertices = np.vstack((x, y)).T
+    n = len(x)
+    triangles = []
+    for i in range(0,int((n-1)/2)):
+        triangles.append([i,i+1,n-i-1])
+        triangles.append([i+1,n-i-1,n-i-2])
+    return vertices, triangles
+
+def extract_core(strat, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, num = 50, bottom = 0, time_step = 4):
+    """function for extracting a "core" from the model"""
+    r, c, ts = np.shape(strat)
+    strat2 = strat.copy()
+    strat2[strat<bottom] = bottom
+    X1 = x0 + np.cos(2*pi/num*np.arange(n))*radius
+    X1 = np.hstack((X1, X1[0]))
+    Y1 = y0 + np.sin(2*pi/num*np.arange(n))*radius
+    Y1 = np.hstack((Y1, Y1[0]))
+    top = scipy.ndimage.map_coordinates(strat2[:,:,-1], np.vstack((Y1, X1)))
+    vertices, triangles = dt.create_section(top, dx, bottom) 
+    color = (0.886, 0.792, 0.463) # color for plotting basal part of panel
+    mlab.triangular_mesh(scale*np.hstack((dx*X1,dx*X1[::-1])),
+                        scale*np.hstack((dx*Y1,dx*Y1[::-1])),scale*ve*vertices[:,1],triangles,color=color)
+    t_steps = np.hstack((np.arange(0, ts, time_step), ts-1))
+    for layer_n in tqdm(t_steps): # main loop
+        Z1 = scipy.ndimage.map_coordinates(strat2[:,:,layer_n], np.vstack((Y1, X1)))
+        mlab.plot3d(X1, Y1, Z1, color=(0,0,0), tube_radius=0.05)
