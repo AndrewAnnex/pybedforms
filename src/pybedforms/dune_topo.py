@@ -205,7 +205,7 @@ class DuneTopo(object):
             if self.SPCNGT != 0:
                 self.TRENDT = self.TRENDF + self.ANGLEC
 
-    def run(self, TIME): #, run): #, GridSize, EdgeGridSpace):
+    def run(self, TIME):
         """
         main run method, below will be split into other functions as needed
         :return:
@@ -480,7 +480,7 @@ def create_section(profile, dx, bottom):
         triangles.append([i+1,n-i-1,n-i-2])
     return vertices, triangles
 
-def extract_core(topo, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, num = 50, bottom = 0, time_step = 4):
+def extract_core(topo, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, num = 50, bottom = 0, time_step = 4, line_thickness = 0.025):
     """function for extracting a "core" from the model"""
     strat = np.minimum.accumulate(topo[:, :, ::-1], axis=2)[:, :, ::-1] # convert topography to stratigraphy
     r, c, ts = np.shape(strat)
@@ -498,4 +498,4 @@ def extract_core(topo, scale = 1, ve = 1, x0 = 50, y0 = 50, dx = 1, radius = 3, 
     t_steps = np.hstack((np.arange(0, ts, time_step), ts-1))
     for layer_n in tqdm(t_steps): # main loop
         Z1 = scipy.ndimage.map_coordinates(strat2[:,:,layer_n], np.vstack((Y1, X1)))
-        mlab.plot3d(X1, Y1, Z1, color=(0,0,0), tube_radius=0.05)
+        mlab.plot3d(X1, Y1, Z1, color=(0,0,0), tube_radius = line_thickness)
