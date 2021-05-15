@@ -4,7 +4,7 @@
 
 <img src="https://github.com/zsylvester/pybedfroms/blob/master/pybedforms_block_diagram.png" width="500">
 
-You can alos extract a "core" from the model and visualize it in 3D:
+You can also extract a "core" from the model and visualize it in 3D:
 
 <img src="https://github.com/zsylvester/pybedfroms/blob/master/pybedforms_core.png" width="100">
 
