@@ -1,6 +1,5 @@
 import numpy as np
 from numpy import pi, sin, cos, arctan2, tan
-import numba as nb
 from tqdm import tqdm
 from mayavi import mlab
 import matplotlib.pyplot as plt
@@ -339,7 +338,7 @@ class DuneTopo(object):
         #     ZBED = np.maximum(ZBED, -30)
         # return ZBED
 
-def plot_3d(topo, bottom_z, top_z, time_step, color=(0.88627451, 0.79215686, 0.4627451), scale=1, ve=1, dx=1, 
+def plot_3d(topo, bottom_z, top_z, time_step, color=(0.88627451, 0.79215686, 0.4627451), ci = 0.1, scale=1, ve=1, dx=1, 
                                                     line_thickness=0.05, contour_switch=False, new_figure=False):
     """function for plotting a set of bedforms in 3D"""
 
@@ -362,8 +361,8 @@ def plot_3d(topo, bottom_z, top_z, time_step, color=(0.88627451, 0.79215686, 0.4
     mlab.surf(X1,Y1,z,warp_scale=ve,color=color)
 
     if contour_switch:
-        contours = list(np.arange(vmin,vmax,ci*scale)) # list of contour values
-        mlab.contour_surf(X1,Y1,z,contours=contours,warp_scale=ve,color=(0,0,0),line_width=1.0)
+        contours = list(np.arange(np.min(strat2[:,:,-1]),np.max(strat2[:,:,-1]),ci*scale)) # list of contour values
+        mlab.contour_surf(X1,Y1,z, contours=contours, warp_scale=ve,color=(0,0,0),line_width=1.0)
 
     # updip side:
     vertices, triangles = create_section(z1[:,0],dx,bottom_z) 
@@ -400,6 +399,9 @@ def plot_3d(topo, bottom_z, top_z, time_step, color=(0.88627451, 0.79215686, 0.4
     y = scale*(vertices[:,1])
     z = scale*bottom_z*np.ones(np.shape(vertices[:,0]))
     mlab.triangular_mesh(x,y,ve*z,triangles,color=color)
+
+    min_final_topo = np.min(topo[:,:,-1])
+    max_final_topo = np.max(topo[:,:,-1])
 
     t_steps = np.hstack((np.arange(0, ts-1, time_step), ts-2))
     for layer_n in tqdm(t_steps): # main loop
