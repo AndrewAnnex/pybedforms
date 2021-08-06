@@ -25,7 +25,7 @@ setup(
     packages = find_packages('src'),
     package_dir = {'': 'src'},
     py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
-    requires=['numpy', 'tqdm', 'scikit-image', 'scipy', 'matplotlib', 'mayavi', 'PyQt5'],
+    requires=['numpy', 'tqdm', 'scikitimage', 'scipy', 'matplotlib', 'mayavi', 'PyQt5'],
     keywords=['usgs','dunes','simulation','geology','sedimentology'],
     classifiers=[
         'Natural Language :: English',
